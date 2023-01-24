@@ -24,7 +24,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  ThemeData _themeData  = ThemeData.light();
+  ThemeData _themeData = ThemeData();
   SharedPreferences? _prefs;
 
 
@@ -44,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         body: Column(
           children: <Widget>[
-            Text('Current theme: ${_themeData!.brightness}'),
+            Text('Current theme: ${_themeData.brightness}'),
             ElevatedButton(
               onPressed: () {
                 _changeTheme(ThemeData.light());
