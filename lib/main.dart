@@ -1,109 +1,87 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      themeMode: ThemeMode.system,
-      debugShowCheckedModeBanner: false,
-      home: MyHomePage(),
-    );
-  }
+  _MyAppState createState() => _MyAppState();
 }
 
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
+class _MyAppState extends State<MyApp> {
 
-class _MyHomePageState extends State<MyHomePage> {
-  ThemeData _themeData = ThemeData();
-  SharedPreferences? _prefs;
-
+  bool _isDarkMode = false;
+  bool _isSystemThemeEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _initPrefs();
+    _loadTheme();
+    _subscribeToBrightnessChanges();
+  }
+
+  Future<void> _loadTheme() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool? isDarkMode = prefs.getBool('isDarkMode');
+    if (isDarkMode == null) {
+      // If the 'isDarkMode' preference is not set, use the device default theme.
+      Brightness platformBrightness = WidgetsBinding.instance!.window.platformBrightness;
+      isDarkMode = platformBrightness == Brightness.dark;
+    }
+    setState(() {
+      _isDarkMode = isDarkMode!;
+    });
+  }
+
+  Future<void> _toggleTheme(bool value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isDarkMode = value;
+      _isSystemThemeEnabled = false; // Disable the system theme when the user manually selects a theme
+      prefs.setBool('isDarkMode', value);
+    });
+  }
+
+  void _subscribeToBrightnessChanges() {
+    WidgetsBinding.instance!.window.onPlatformBrightnessChanged = () {
+      if (_isSystemThemeEnabled) {
+        Brightness platformBrightness = WidgetsBinding.instance!.window.platformBrightness;
+        setState(() {
+          _isDarkMode = platformBrightness == Brightness.dark;
+        });
+      }
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: _themeData,
-      child: Scaffold(
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    return MaterialApp(
+      title: 'Dynamic Theme',
+      debugShowCheckedModeBanner: false,
+      theme: _isDarkMode ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true),
+      home: Scaffold(
         appBar: AppBar(
-          title: Text('Dynamic Theme'),
+          title: Text('Dark/Light Theme Switcher'),
         ),
-        body: Column(
-          children: <Widget>[
-            Text('Current theme: ${_themeData.brightness}'),
-            ElevatedButton(
-              onPressed: () {
-                _changeTheme(ThemeData.light());
-              },
-              child: Text('Change to light theme'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _changeTheme(ThemeData.dark());
-              },
-              child: Text('Change to dark theme'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Brightness deviceBrightness =
-                    MediaQuery.of(context).platformBrightness;
-                _changeTheme(deviceBrightness == Brightness.light
-                    ? ThemeData.light()
-                    : ThemeData.dark());
-                _prefs!.setString(
-                    'theme',
-                    deviceBrightness == Brightness.light
-                        ? ThemeMode.light.toString()
-                        : ThemeMode.dark.toString());
-              },
-              child: Text('Change to device theme'),
-            ),
-          ],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Change theme using switch',
+              ),
+              Switch(
+                value: _isDarkMode,
+                onChanged: _toggleTheme,
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  void _initPrefs() async {
-    _prefs = await SharedPreferences.getInstance();
-    String? theme = _prefs!.getString('theme');
-    if (theme == null) {
-      Brightness deviceBrightness = MediaQuery.of(context).platformBrightness;
-      theme = deviceBrightness == Brightness.light
-          ? ThemeMode.light.toString()
-          : ThemeMode.dark.toString();
-      _prefs!.setString('theme', theme);
-    }
-    if (theme == ThemeMode.light.toString()) {
-      _themeData = ThemeData.light();
-    } else if (theme == ThemeMode.dark.toString()) {
-      _themeData = ThemeData.dark();
-    }
-    setState(() {});
-  }
-
-  void _changeTheme(ThemeData theme) {
-    setState(() {
-      _themeData = theme;
-    });
-    _prefs!.setString(
-        'theme',
-        theme == ThemeData.light()
-            ? ThemeMode.light.toString()
-            : ThemeMode.dark.toString());
   }
 }
